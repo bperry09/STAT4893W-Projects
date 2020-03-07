@@ -1,0 +1,121 @@
+---
+title: "Appendix: R Code for Consulting Data Analysis"
+output: pdf_document
+---
+
+## Read in the Dataset
+
+```{r cars}
+library(readxl)
+data <- read_excel("~/Stat 4893W/Stat4893W_SampleData_Consulting.xlsx")
+#View(data)
+data <- data[c(1:8)]
+data <- na.omit(data) 
+#removes 3 blank rows and the people who withdrew from the study
+#View(data) #94 entries across Islands and Treatments
+attach(data)
+```
+
+## Separating by Treatment 
+
+```{r}
+control <- data[Treatment=="Control",] #31 entries
+#View(control)
+healthy <- data[Treatment=="Healthy",] #32 entries
+#View(healthy)
+unhealthy <- data[Treatment=="Unhealthy",] #31 entries
+#View(unhealthy)
+
+#summary(control$Difference)
+#summary(healthy$Difference)
+#summary(unhealthy$Difference)
+```
+
+## Baseline Analysis
+
+```{r}
+hprem <- mean(healthy$`Pre Test Score `)
+uprem <- mean(unhealthy$`Pre Test Score `)
+cprem <- mean(control$`Pre Test Score `)
+hprem; uprem; cprem
+hsd <- sd(healthy$`Pre Test Score `)
+usd <- sd(unhealthy$`Pre Test Score `)
+csd <- sd(control$`Pre Test Score `)
+hse <- hsd/sqrt(32)
+use <- usd/sqrt(31)
+cse <- csd/sqrt(31)
+hse; use; cse
+
+sum(control$Gender=="M") #16 males, 15 females
+sum(healthy$Gender=="M") #18 males, 14 females
+sum(unhealthy$Gender=="M") #18 males, 13 females
+
+sum(control$Island=="South West"); sum(control$Island=="Central") 
+#10 SW, 10 C, 11 NW
+sum(healthy$Island=="South West"); sum(healthy$Island=="Central") 
+#12 SW, 11 C, 9 NW
+sum(unhealthy$Island=="South West"); sum(unhealthy$Island=="Central") 
+#10 SW, 11 C, 10 NW
+```
+
+## ANOVA Testing
+
+```{r}
+par(mfrow=c(1,1))
+#Looking at the data after treatment is implemented
+boxplot(Difference~Treatment, ylab="Pre and Post Test Score Differences")
+```
+
+```{r, warning=FALSE}
+#Checking Assumptions: within and between group independence, a normally distributed response, and constant variance between groups
+hvar <- var(healthy$Difference)
+uvar <- var(unhealthy$Difference)
+cvar <- var(control$Difference)
+#0.009, 0.006, 0.005 (approx equal & none are double)
+
+hmean <- mean(healthy$Difference)
+umean <- mean(unhealthy$Difference)
+cmean <- mean(control$Difference)
+hmean; umean; cmean #healthy and unhealthy are similar; control is smaller
+
+hdse <- sqrt(hvar)/sqrt(32)
+udse <- sqrt(uvar)/sqrt(31)
+cdse <- sqrt(cvar)/sqrt(31)
+hdse; udse; cdse
+
+hmean <- mean(healthy$`Post Test Score`)
+umean <- mean(unhealthy$`Post Test Score`)
+cmean <- mean(control$`Post Test Score`)
+hmean; umean; cmean
+hdse <- sqrt(var(healthy$`Post Test Score`))/sqrt(32)
+udse <- sqrt(var(unhealthy$`Post Test Score`))/sqrt(31)
+cdse <- sqrt(var(control$`Post Test Score`))/sqrt(31)
+hdse; udse; cdse
+```
+
+```{r}
+anova1 <- aov(Difference~Treatment, data=data)
+#anova1
+summary(anova1)
+
+{plot(resid(anova1)~fitted(anova1), ylab="Residuals of ANOVA", xlab="Fitted Values of ANOVA")
+abline(0, 0, col="red")}
+
+#Checking Normality Assumption
+{qqnorm(anova1$residuals, ylab="Standarized Residuals", xlab="Theoretical Quantiles \n aov(Difference~Treatment)")
+qqline(anova1$residuals)}
+```
+
+```{r, warning=FALSE}
+#Checking the covariates
+library(car)
+Anova(lm(Difference~Gender+Island+Treatment))
+#not significant - assume they do not confound the analysis
+```
+
+```{r}
+#Post Hoc Multiple Comparisons
+TukeyHSD(anova1)
+#eating something helps, but it doesn't necessarily matter what you eat
+#even though the first two are significant, consider the practicality of % change
+```
